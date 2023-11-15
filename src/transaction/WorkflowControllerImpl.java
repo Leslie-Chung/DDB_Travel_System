@@ -4,7 +4,7 @@ import lockmgr.DeadlockException;
 import transaction.entity.*;
 
 import java.rmi.Naming;
-import java.rmi.RMISecurityManager;
+import java.lang.SecurityManager;
 import java.rmi.RemoteException;
 import java.util.Collection;
 import java.util.HashSet;
@@ -32,6 +32,10 @@ public class WorkflowControllerImpl
     // log
     private String xidsLog = "data/WC_xids.log";
 
+    /*
+     * 通过调用 recover() 方法进行恢复，并尝试重新连接资源管理器。
+     * 如果连接不成功，会等待一段时间后重试。
+     */
     public WorkflowControllerImpl() throws RemoteException {
         recover();
 
@@ -44,8 +48,9 @@ public class WorkflowControllerImpl
         }
     }
 
+    // 启动 WorkflowControllerImpl 实例，并将其绑定到 RMI 注册中心。
     public static void main(String args[]) {
-        System.setSecurityManager(new RMISecurityManager());
+        System.setSecurityManager(new SecurityManager());
 
         String rmiPort = System.getProperty("rmiPort");
         if (rmiPort == null) {
@@ -644,13 +649,20 @@ public class WorkflowControllerImpl
     // TECHNICAL/TESTING INTERFACE
     public boolean reconnect()
             throws RemoteException {
+        /*
+         * 获取RMI端口： 从系统属性中获取RMI端口信息。
+         */
         String rmiPort = System.getProperty("rmiPort");
         if (rmiPort == null) {
             rmiPort = "";
         } else if (!rmiPort.equals("")) {
             rmiPort = "//:" + rmiPort + "/";
         }
-
+        /*
+         * 重新连接到各个组件： 
+         * 使用 Naming.lookup 方法重新查找并绑定到各个 ResourceManager 和 TransactionManager。
+         * 这样可以确保 WorkflowControllerImpl 重新获取对这些组件的引用。
+         */
         try {
             rmFlights =
                     (ResourceManager) Naming.lookup(rmiPort +
@@ -677,6 +689,10 @@ public class WorkflowControllerImpl
             return false;
         }
 
+        /*
+         * 检查重连结果： 
+         * 调用各个 ResourceManager 的 reconnect 方法检查是否能够重新连接到 TransactionManager。
+         */
         try {
             if (rmFlights.reconnect() && rmRooms.reconnect() &&
                     rmCars.reconnect() && rmCustomers.reconnect()) {
@@ -736,7 +752,9 @@ public class WorkflowControllerImpl
         }
         return true;
     }
-
+    
+    // 模拟在资源管理器完成事务 enlist 后宕机
+    // 资源管理器 enlist： 各个资源管理器（RM）通过调用 enlist 方法将自己加入到这个全局事务中，告知事务管理器它将参与到该事务中。
     public boolean dieRMAfterEnlist(String who)
             throws RemoteException {
         // which RM to kill; must be "RMFlights", "RMRooms", "RMCars", or "RMCustomers".
@@ -781,7 +799,7 @@ public class WorkflowControllerImpl
             throws RemoteException {
         return dieRMByTime(who, "AfterPrepare");
     }
-
+    // 模拟在事务管理器进行 commit 操作前宕机
     public boolean dieTMBeforeCommit()
             throws RemoteException {
         tm.setDieTime("BeforeCommit");
@@ -794,6 +812,7 @@ public class WorkflowControllerImpl
         return true;
     }
 
+    // 模拟在资源管理器进行 commit 操作前宕机
     public boolean dieRMBeforeCommit(String who)
             throws RemoteException {
         return dieRMByTime(who, "BeforeCommit");

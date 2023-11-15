@@ -7,8 +7,7 @@ package transaction.entity;
 import transaction.InvalidIndexException;
 
 /**
- * @author RAdmin
- * <p>
+ * 预定
  */
 public class Reservation extends ResourceItem {
     public static final int RESERVATION_TYPE_FLIGHT = 1;

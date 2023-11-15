@@ -1,8 +1,5 @@
 package transaction;
 
-import java.rmi.*;
-
-
 /**
  * A problem occurred that caused the transaction to abort.  Perhaps
  * deadlock was the problem, or perhaps a device or communication

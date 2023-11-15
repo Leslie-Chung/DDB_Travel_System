@@ -7,7 +7,7 @@ public class TrxnObj extends XObj {
 
     protected String strData = null;
 
-    protected int lockType = -1;
+    protected int lockType = -1; // read or write
 
     // The data members inherited are
     // XObj::protected int xid = 0;

@@ -68,7 +68,7 @@ class LockManagerTest {
                         String param = st.nextToken();
                         int sleepTime = Integer.parseInt(param);
                         try {
-                            this.sleep(sleepTime);
+                            sleep(sleepTime);
                         } catch (InterruptedException ie) {
                         }
                     } else {

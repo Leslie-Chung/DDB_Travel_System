@@ -1,16 +1,5 @@
 # Intellij files
-.idea/
-bin/
-build/
-*.iml
 
-# test file
-# runrmi.sh
-#src/test.part2
-
-# temp ppt
-doc/~$*.ppt
-doc/*.docx
 *.tmp
 
 # Compiled class file
@@ -18,12 +7,6 @@ doc/*.docx
 
 # Log file
 *.log
-
-# BlueJ files
-*.ctxt
-
-# Mobile Tools for Java (J2ME)
-.mtj.tmp/
 
 # Package Files #
 *.jar
@@ -34,5 +17,6 @@ doc/*.docx
 *.tar.gz
 *.rar
 
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
-hs_err_pid*
+src/cs223test/data/
+src/cs223test/results/
+src/transaction/data/*

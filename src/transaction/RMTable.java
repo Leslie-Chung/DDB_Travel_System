@@ -1,7 +1,3 @@
-/*
- * Created on 2005-5-18
- *
- */
 package transaction;
 
 import lockmgr.DeadlockException;
@@ -15,15 +11,14 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * @author RAdmin
- * <p>
+ * 用于管理事务中涉及的资源项和锁
  */
 public class RMTable implements Serializable {
-    protected Hashtable table = new Hashtable();
+    protected Hashtable table = new Hashtable(); // <key, resourceitem>
 
     transient protected RMTable parent;
 
-    protected Hashtable locks = new Hashtable();
+    protected Hashtable locks = new Hashtable(); // <key, locktype>
 
     transient protected LockManager lm;
 

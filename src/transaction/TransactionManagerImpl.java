@@ -2,28 +2,26 @@ package transaction;
 
 import java.io.File;
 import java.rmi.Naming;
-import java.rmi.RMISecurityManager;
+import java.lang.SecurityManager;
 import java.rmi.RemoteException;
 import java.util.HashMap;
 import java.util.HashSet;
 
 /**
- * Transaction Manager for the Distributed Travel Reservation System.
- * <p>
- * Description: toy implementation of the TM
+ * 协调和管理多个资源管理器的参与，并通过日志文件记录状态以支持故障恢复。
  */
 
 public class TransactionManagerImpl
         extends java.rmi.server.UnicastRemoteObject
         implements TransactionManager {
 
-    private Integer xidCounter; // allocate unique id
+    private Integer xidCounter; // 为每个事务分配唯一的事务标识符（XID）的计数器。
     private String dieTime; // dieTime flag
-    // resource managers of all transactions
+    // 维护所有事务涉及的资源管理器的集合，以及与每个事务相关的资源管理器的数量。
     private HashMap<Integer, HashSet<ResourceManager>> RMs = new HashMap<>();
-    // all active transactions
+    // 存储所有活动事务的XID及其状态
     private HashMap<Integer, String> xids = new HashMap<>();
-    // transaction to be recovered after some RMs died or TM died
+    // 存储需要在某些资源管理器或事务管理器故障后进行恢复的事务的XID和相关信息。
     private HashMap<Integer, Integer> xids_to_be_recovered = new HashMap<>();
 
     //log path
@@ -38,8 +36,9 @@ public class TransactionManagerImpl
         recover();
     }
 
+    // 实例化 TransactionManagerImpl 对象并将其绑定到RMI注册表。
     public static void main(String[] args) {
-        System.setSecurityManager(new RMISecurityManager());
+        System.setSecurityManager(new SecurityManager());
 
         String rmiPort = System.getProperty("rmiPort");
         if (rmiPort == null) {
@@ -60,6 +59,7 @@ public class TransactionManagerImpl
         }
     }
 
+    // 从日志文件中读取已存储的状态，包括计数器、事务状态以及需要恢复的事务信息。
     private void recover() {
         File dataDir = new File("data");
         if (!dataDir.exists()) {
@@ -95,6 +95,8 @@ public class TransactionManagerImpl
     public void ping() throws RemoteException {
     }
 
+    // 向事务中添加资源管理器，处理事务的初始化和状态转换。
+    // 如果事务已被恢复，则直接返回COMMITTED状态，否则根据当前状态和资源管理器的加入更新事务状态。
     public String enlist(int xid, ResourceManager rm) throws RemoteException {
         if (xids_to_be_recovered.containsKey(xid)) {
             int num = xids_to_be_recovered.get(xid);
@@ -124,6 +126,7 @@ public class TransactionManagerImpl
         return INITED;
     }
 
+    // 开始新的事务，为其分配唯一的XID，并在数据结构中记录相应的状态。
     @Override
     public int start() throws RemoteException {
         synchronized (xidCounter) {
@@ -144,6 +147,12 @@ public class TransactionManagerImpl
         }
     }
 
+    /*
+     * 实现了两阶段提交协议（2PC）。
+     * 在第一阶段，执行准备（prepare）操作，向所有涉及的资源管理器发送准备请求。
+     * 如果所有资源管理器都准备就绪，则进入第二阶段，执行提交操作。
+     * 根据dieTime标志，可能在提交前或提交后终止事务。
+     */
     @Override
     public boolean commit(int xid) throws RemoteException, TransactionAbortedException, InvalidTransactionException {
         if (!xids.containsKey(xid))
@@ -215,6 +224,7 @@ public class TransactionManagerImpl
         return true;
     }
 
+    // 在某些资源管理器故障后，将事务标记为需要在后续操作中进行恢复。
     private void setRecoveryLater(int xid, int num) {
         synchronized (xids_to_be_recovered) {
             // use number instead of rm info, for the rm message is difficult to get
@@ -228,6 +238,7 @@ public class TransactionManagerImpl
         }
     }
 
+    // 执行事务的中止操作，通知所有涉及的资源管理器执行相应的中止操作。
     @Override
     public void abort(int xid) throws RemoteException, InvalidTransactionException {
         if (!xids.containsKey(xid)) {

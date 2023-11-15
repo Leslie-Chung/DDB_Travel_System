@@ -47,7 +47,7 @@ DDB course project: 分布式旅游预订系统
 - doc: 一些文档：教程，笔记
 - src: 项目源码
     - lockmgr: 锁管理器
-    - test.part2: 测试文件
+    - cs223test: 测试文件
     - transaction: 分布式事务系统实现
 - run_test.sh: the script to run auto test.
 - run_server.sh: the script to run server only.
@@ -63,19 +63,19 @@ RMIName 为各个服务例如WC,TM,RMs 的名字，涉及文件较多，建议�
 ### 2.2.2. 运行服务:
 切换到根目录：DDB_PJ/, 然后执行脚本
 ```bash
-sudo bash run_server.sh
+bash run_server.sh
 ```
 该脚本会启用WC,TM和所有的RM.
 启动新的窗口，然后可以运行src/transaction/SimpleClient.java简单测试服务。启动命令：
 ```bash
-sudo bash run_simple_client.sh
+bash run_simple_client.sh
 ```
 建议使用linux环境，如非 Ubuntu，命令可能略有不同，打开脚本自行修改。
 ### 2.2.3. 运行自动化测试:
 可以采用编写的测试环境执行自动化测试，参考：[https://www.ics.uci.edu/~cs223/projects/projects2.html](https://www.ics.uci.edu/~cs223/projects/projects2.html).
 
 简单介绍：
-目录为src/test.part2
+目录为src/cs223test
 - results: 各个测试案例测试结果. 已经包含一部分案例的正确测试结果，提供参考。
 - scripts: 所有的测试案例。格式如下：
 ```text

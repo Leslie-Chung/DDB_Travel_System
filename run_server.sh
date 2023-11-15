@@ -1,18 +1,10 @@
 #!/usr/bin/env bash
-# kill the process using the port 3345
-# on Windows Powershell
-#   FOR /F "tokens=5 delims= " %P IN ('netstat -ano | findstr :3345') DO @ECHO TaskKill.exe /PID %P
-#   how kill process by port by hand
-#   netstat -ano | findstr :3345
-#   taskkill /F /pid pid_number
-# on ubuntu
-#   sudo kill $(sudo lsof -t -i:3345)
 
-# make lock util
+# compile lock
 cd src/lockmgr
 make
 
-# make server
+# compile server & client
 cd ../transaction
 make clean
 make server
@@ -20,9 +12,15 @@ make client
 
 # run server
 make runregistry &
-make runtm &
+sleep 5  # 防止报错
+make runtm & 
+sleep 5
 make runrmflights &
+sleep 5
 make runrmrooms &
+sleep 5
 make runrmcars &
+sleep 5
 make runrmcustomers &
+sleep 5
 make runwc &

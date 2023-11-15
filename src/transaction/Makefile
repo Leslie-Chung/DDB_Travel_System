@@ -1,4 +1,4 @@
-RMIREGPORT =3345 
+RMIREGPORT =8080 
 PROJECTROOT = ..
 # Path = usr/bin # use java in environment
 all : server client

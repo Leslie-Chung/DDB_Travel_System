@@ -6,7 +6,7 @@ import transaction.entity.ResourceItem;
 
 import java.io.*;
 import java.rmi.Naming;
-import java.rmi.RMISecurityManager;
+import java.lang.SecurityManager;
 import java.rmi.RemoteException;
 import java.util.*;
 
@@ -17,15 +17,24 @@ import java.util.*;
  */
 
 public class ResourceManagerImpl extends java.rmi.server.UnicastRemoteObject implements ResourceManager {
-    private final static String TRANSACTION_LOG_FILENAME = "transactions.log";
     protected TransactionManager tm = null;
-    private String myRMIName = null; // Used to distinguish this RM from others
-    private String dieTime;
+    private String myRMIName = null; // 标识资源管理器的RMI名称，用于区分不同的资源管理器。
+    private String dieTime; 
     // RMs
-    private HashSet xids = new HashSet();
+    private HashSet xids = new HashSet(); // 存储已注册的事务ID的集合。
     private LockManager lm = new LockManager();
+    
+    // 存储不同事务和表之间的关系 <Integer(xid), Hashtable>
+    // value也是Hashtable，存的是<string(tablename), RMTable> tablename对应某个table
+    // RMTable -> <key, resourceitem> 和 <key, locktype>
     private Hashtable tables = new Hashtable();
 
+    /*
+     * 检查传入的RMI名称是否有效。
+     * 设置myRMIName。
+     * 调用recover()进行资源恢复。
+     * 启动一个线程定期与事务管理器TM连接。
+     */
     public ResourceManagerImpl(String rmiName) throws RemoteException {
         // check whether the resource is valid
         if (!(rmiName.equals(RMINameCars) || rmiName.equals(RMINameCustomers) ||
@@ -69,8 +78,14 @@ public class ResourceManagerImpl extends java.rmi.server.UnicastRemoteObject imp
         }.start();
     }
 
+    /*
+     * 启动资源管理器。
+     * 设置安全管理器。
+     * 获取RMI名称和端口。
+     * 创建ResourceManagerImpl对象并绑定到RMI注册表。
+     */
     public static void main(String[] args) {
-        System.setSecurityManager(new RMISecurityManager());
+        System.setSecurityManager(new SecurityManager());
 
         String rmiName = System.getProperty("rmiName");
         if (rmiName == null || rmiName.equals("")) {
@@ -104,6 +119,7 @@ public class ResourceManagerImpl extends java.rmi.server.UnicastRemoteObject imp
         return myRMIName;
     }
 
+    // 从事务日志和数据文件中恢复资源管理器的状态。
     public void recover() {
         HashSet t_xids = loadTransactionLogs();
         if (t_xids != null)
@@ -149,6 +165,7 @@ public class ResourceManagerImpl extends java.rmi.server.UnicastRemoteObject imp
         }
     }
 
+    // 重新连接到事务管理器。
     public boolean reconnect() {
         String rmiPort = System.getProperty("rmiPort");
         if (rmiPort == null) {
@@ -199,6 +216,7 @@ public class ResourceManagerImpl extends java.rmi.server.UnicastRemoteObject imp
         // but we still need it to please the compiler.
     }
 
+    // 获取与资源管理器RM关联的事务管理器TM。
     public TransactionManager getTransactionManager() throws TransactionManagerUnaccessibleException {
         if (tm != null) {
             try {
@@ -402,17 +420,34 @@ public class ResourceManagerImpl extends java.rmi.server.UnicastRemoteObject imp
 
     public boolean update(int xid, String tablename, Object key, ResourceItem newItem) throws DeadlockException,
             InvalidTransactionException, RemoteException {
+        /*
+         * 参数验证：
+         * 检查传入的事务ID (xid) 是否为正整数。
+         * 检查传入的表名 (tablename) 是否有效。
+         * 检查传入的键 (key) 是否与新资源项 (newItem) 的键相同。
+         */
         if (xid < 0) {
             throw new InvalidTransactionException(xid, "Xid must be positive.");
         }
         if (!key.equals(newItem.getKey()))
             throw new IllegalArgumentException();
 
+
         try {
+            /*
+            * 事务管理器注册：
+            * 将当前事务ID (xid) 添加到已注册事务的集合中。
+            * 将已注册事务的信息记录到事务日志中。
+            */
             synchronized (xids) {
                 xids.add(new Integer(xid));
                 storeTransactionLogs(xids);
             }
+            /*
+             * 事务管理器连接：
+             * 获取与资源管理器关联的事务管理器 (tm)。
+             * 如果事务管理器不可访问，则尝试重新连接。
+             */
             getTransactionManager().enlist(xid, this);
         } catch (TransactionManagerUnaccessibleException e) {
             throw new RemoteException(e.getLocalizedMessage(), e);
@@ -420,12 +455,23 @@ public class ResourceManagerImpl extends java.rmi.server.UnicastRemoteObject imp
 
         if (dieTime.equals("AfterEnlist"))
             dieNow();
-
+        /*
+         * 资源表获取：
+         * 获取与当前事务和表相关联的资源表 (RMTable)。
+         * 如果资源表不存在，则创建一个新的资源表。
+         */
         RMTable table = getTable(xid, tablename);
         ResourceItem item = table.get(key);
         if (item != null && !item.isDeleted()) {
+        /*
+         * 资源项更新：
+         * 使用键 (key) 获取当前资源表中的资源项 (item)。
+         * 如果资源项存在且未被删除，则对资源项进行写锁定。
+         * 将新资源项 (newItem) 放入资源表中。
+         */
             table.lock(key, LockManager.WRITE);
             table.put(newItem);
+            // 将更新后的资源表写入到磁盘，以确保数据持久化。
             if (!storeTable(table, new File("data/" + xid + "/" + tablename))) {
                 throw new RemoteException("System Error: Can't write table to disk!");
             }
@@ -543,6 +589,11 @@ public class ResourceManagerImpl extends java.rmi.server.UnicastRemoteObject imp
     }
 
     public boolean prepare(int xid) throws InvalidTransactionException, RemoteException {
+        /*
+         * 当 dieTime 被设置为 "BeforePrepare" 时，系统在 prepare 函数执行之前就会终止。
+         * 这意味着事务在准备阶段之前就会因为某种异常情况而失败，模拟了事务准备阶段的失败场景。
+         * 在实际的分布式系统中，可能会发生各种故障，例如网络故障、参与者故障等，导致事务在准备阶段失败。
+         */
         if (dieTime.equals("BeforePrepare"))
             dieNow();
 
@@ -552,6 +603,11 @@ public class ResourceManagerImpl extends java.rmi.server.UnicastRemoteObject imp
 
         // AfterPrepare: die after it has entered the prepared state, but just before it
         //     * could reply "prepared" to the TM.
+        /*
+         * 当 dieTime 被设置为 "AfterPrepare" 时，系统在 prepare 函数执行之后，即事务已经进入准备就绪状态，但在向事务协调器（Transaction Manager）发送最终提交之前，系统就会终止。
+         * 这模拟了在事务准备阶段成功后，但在最终提交之前发生的异常情况。
+         * 在实际系统中，这可能包括事务协调器崩溃或无法与参与者通信等异常情况。
+         */
         if (dieTime.equals("AfterPrepare"))
             dieNow();
 
@@ -565,10 +621,15 @@ public class ResourceManagerImpl extends java.rmi.server.UnicastRemoteObject imp
         if (xid < 0) {
             throw new InvalidTransactionException(xid, "Xid must be positive.");
         }
+        // 从存储事务表的数据结构中获取每个表的 RMTable 对象。
         Hashtable xidtables = (Hashtable) tables.get(new Integer(xid));
         if (xidtables != null) {
             synchronized (xidtables) {
                 for (Iterator iter = xidtables.entrySet().iterator(); iter.hasNext(); ) {
+                    /*
+                     * 对于每个表，将事务中的每个项写回到对应的表中。
+                     * 如果某个项被标记为删除，就从表中移除该项；否则，将该项放入表中。
+                     */
                     Map.Entry entry = (Map.Entry) iter.next();
                     RMTable xtable = (RMTable) entry.getValue();
                     RMTable table = getTable(xtable.getTablename());
@@ -580,18 +641,21 @@ public class ResourceManagerImpl extends java.rmi.server.UnicastRemoteObject imp
                         else
                             table.put(item);
                     }
+                    //  将更新后的表写回到磁盘，以确保数据的持久性。
                     if (!storeTable(table, new File("data/" + entry.getKey())))
                         throw new RemoteException("Can't write table to disk");
+                    // 删除事务中生成的临时表文件
                     new File("data/" + xid + "/" + entry.getKey()).delete();
                 }
+                // 删除事务目录，该目录包含了该事务涉及的所有表文件。
                 new File("data/" + xid).delete();
                 tables.remove(new Integer(xid));
             }
         }
-
+        // 释放事务中的所有锁
         if (!lm.unlockAll(xid))
             throw new RuntimeException();
-
+        // 从全局事务列表中移除该事务
         synchronized (xids) {
             xids.remove(new Integer(xid));
         }
