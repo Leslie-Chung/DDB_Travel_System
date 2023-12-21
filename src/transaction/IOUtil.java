@@ -2,12 +2,7 @@ package transaction;
 
 import java.io.*;
 
-/**
- * @author Duocai Wu
- * @Date 2019/7/23
- * @Time 10:35
- */
-public class utils {
+public class IOUtil {
 
     public static boolean storeObject(Object o, String path) {
         File xidLog = new File(path);
@@ -20,11 +15,7 @@ public class utils {
         } catch (Exception e) {
             return false;
         } finally {
-            try {
-                if (oout != null)
-                    oout.close();
-            } catch (IOException e1) {
-            }
+            closeStream(oout);
         }
     }
 
@@ -37,11 +28,16 @@ public class utils {
         } catch (Exception e) {
             return null;
         } finally {
-            try {
-                if (oin != null)
-                    oin.close();
-            } catch (IOException e1) {
-            }
+            closeStream(oin);
         }
     }
+
+    private static void closeStream(Closeable stream) {
+        try {
+            if (stream != null)
+                stream.close();
+        } catch (IOException e1) {
+        }
+    }
+
 }

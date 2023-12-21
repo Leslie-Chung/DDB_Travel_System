@@ -2,14 +2,9 @@ package transaction.entity;
 
 import transaction.InvalidIndexException;
 
-/**
- * @author Duocai Wu
- * @Date 2019/7/19
- * @Time 15:09
- */
 public class Car extends ResourceItem {
     private String location;
-    private int price; // every car has the same price
+    private int price;
     private int numCars;
     private int numAvail;
 
@@ -47,18 +42,9 @@ public class Car extends ResourceItem {
         this.numAvail -= num;
     }
 
-    public void unbookCars(int num) {
-        this.numAvail += num;
-    }
-
     public void addCars(int num) {
         this.numCars += num;
         this.numAvail += num;
-    }
-
-    public void deleteCars(int num) {
-        this.numCars -= num;
-        this.numAvail -= num;
     }
 
     @Override

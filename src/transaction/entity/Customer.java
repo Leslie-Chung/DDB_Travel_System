@@ -2,11 +2,6 @@ package transaction.entity;
 
 import transaction.InvalidIndexException;
 
-/**
- * @author Duocai Wu
- * @Date 2019/7/19
- * @Time 15:16
- */
 public class Customer extends ResourceItem {
     private String custName;
 

@@ -6,10 +6,6 @@ package transaction.entity;
 
 import java.io.Serializable;
 
-/**
- * @author RAdmin
- * <p>
- */
 public class ReservationKey implements Serializable {
     protected String custName;
 

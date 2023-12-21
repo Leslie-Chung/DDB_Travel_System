@@ -16,18 +16,31 @@ public class TransactionManagerImpl
         implements TransactionManager {
 
     private Integer xidCounter; // 为每个事务分配唯一的事务标识符（XID）的计数器。
-    private String dieTime; // dieTime flag
+    private String dieTime;
     // 维护所有事务涉及的资源管理器的集合，以及与每个事务相关的资源管理器的数量。
     private HashMap<Integer, HashSet<ResourceManager>> RMs = new HashMap<>();
     // 存储所有活动事务的XID及其状态
     private HashMap<Integer, String> xids = new HashMap<>();
-    // 存储需要在某些资源管理器或事务管理器故障后进行恢复的事务的XID和相关信息。
-    private HashMap<Integer, Integer> xids_to_be_recovered = new HashMap<>();
 
-    //log path
-    private String xidCounterPath = "xidCounter.log";
-    private String xidsStatusPath = "xidsStatus.log";
-    private String xidsToBeRecoveredPath = "xidsToBeRecovered.log";
+    private static final String counterLog = "counter.log";
+    private static final String statusLog = "status.log";
+    private static final String needRecoveredLog = "needRecovered.log";
+    // 存储需要在某些资源管理器或事务管理器故障后进行恢复的事务的XID和相关信息。
+    private HashMap<Integer, Integer> xidsToRecover = new HashMap<>();
+
+    public boolean dieNow() throws RemoteException {
+        System.exit(1);
+        return true; // We won't ever get here since we exited above;
+        // but we still need it to please the compiler.
+    }
+
+    public void setDieTime(String dieTime) {
+        this.dieTime = dieTime;
+    }
+
+    public void ping() throws RemoteException {
+        System.out.println("TM Get ping signal");
+    }
 
     public TransactionManagerImpl() throws RemoteException {
         xidCounter = 1;
@@ -59,91 +72,98 @@ public class TransactionManagerImpl
         }
     }
 
+    private void storeLog(Object o, String path) {
+        IOUtil.storeObject(o, "log/" + path);
+    }
+
+    private Object loadLog(String path) {
+        return IOUtil.loadObject("log/" + path);
+    }
+
     // 从日志文件中读取已存储的状态，包括计数器、事务状态以及需要恢复的事务信息。
     private void recover() {
+        createDataDir();
+
+        xidCounter = (Integer) loadLogAndProcessResult(counterLog, xidCounter);
+        xidsToRecover = (HashMap<Integer, Integer>) loadLogAndProcessResult(needRecoveredLog, xidsToRecover);
+        HashMap<Integer, String> xids_ = (HashMap<Integer, String>) loadLogAndProcessResult(statusLog, null);
+        if (xids_ != null) {
+            xids_.entrySet().stream().forEach(entry -> {
+                String[] values = entry.getValue().split("_");
+                String status = values[0];
+                int rmNum = Integer.parseInt(values[1]);
+                if (status.equals("COMMITTED")) {
+                    setRecoveryLater(entry.getKey(), rmNum);
+                }
+            });
+        }
+    }
+
+    private void createDataDir() {
         File dataDir = new File("data");
         if (!dataDir.exists()) {
             dataDir.mkdirs();
         }
-
-        Object xidCounterTmp = utils.loadObject("data/" + xidCounterPath);
-        if (xidCounterTmp != null)
-            xidCounter = (Integer) xidCounterTmp;
-
-        Object xidsToDo = utils.loadObject("data/" + xidsToBeRecoveredPath);
-        if (xidsToDo != null)
-            xids_to_be_recovered = (HashMap<Integer, Integer>) xidsToDo;
-
-        Object xidsTmp = utils.loadObject("data/" + xidsStatusPath);
-        if (xidsTmp != null) {
-            HashMap<Integer, String> xids_to_be_done = (HashMap<Integer, String>) xidsTmp;
-            System.out.println("Redo logs");
-            for (Integer xidTmp : xids_to_be_done.keySet()) {
-                String[] vals = xids_to_be_done.get(xidTmp).split("_");
-                String status = vals[0];
-                int rm_num = Integer.parseInt(vals[1]);
-                if (status.equals(COMMITTED)) {
-                    // redo_logs
-                    setRecoveryLater(xidTmp, rm_num);
-                }
-                // else, simply abort. The rms will be informed to abort transaction when they enlist
-            }
-            System.out.println("Finish redo logs.");
-        }
     }
 
-    public void ping() throws RemoteException {
+    private Object loadLogAndProcessResult(String log, Object defaultValue) {
+        Object result = loadLog(log);
+        return result != null ? result : defaultValue;
     }
 
     // 向事务中添加资源管理器，处理事务的初始化和状态转换。
     // 如果事务已被恢复，则直接返回COMMITTED状态，否则根据当前状态和资源管理器的加入更新事务状态。
     public String enlist(int xid, ResourceManager rm) throws RemoteException {
-        if (xids_to_be_recovered.containsKey(xid)) {
-            int num = xids_to_be_recovered.get(xid);
-            synchronized (xids_to_be_recovered) {
-                if (num > 1)
-                    xids_to_be_recovered.put(xid, num - 1);
-//                else
-//                    // do not remove this transaction id if rm dies after receiving the committed message.
-//                    xids_to_be_recovered.remove(xid);
-                utils.storeObject(xids_to_be_recovered, xidsToBeRecoveredPath);
-            }
-            return COMMITTED;
+        if (xidsToRecover.containsKey(xid)) {
+            updateXidsToRecover(xid);
+            return "COMMITTED";
         }
         if (!xids.containsKey(xid)) {
-            return ABORTED; // the xid has been aborted
+            return "ABORTED";
         }
+        updateRMsAndXids(xid, rm);
+        return "INITED";
+    }
+
+    private void updateXidsToRecover(int xid) {
+        int num = xidsToRecover.get(xid);
+        synchronized (xidsToRecover) {
+            if (num > 1)
+                xidsToRecover.put(xid, num - 1);
+            IOUtil.storeObject(xidsToRecover, needRecoveredLog);
+        }
+    }
+
+    private void updateRMsAndXids(int xid, ResourceManager rm) {
         synchronized (RMs) {
             if (!RMs.containsKey(xid)) // recover from failure.
                 RMs.put(xid, new HashSet<>());
-            HashSet<ResourceManager> xidRMs = RMs.get(xid);
-            xidRMs.add(rm);
+            HashSet<ResourceManager> relatedRMs = RMs.get(xid);
+            relatedRMs.add(rm);
             synchronized (xids) {
-                xids.put(xid, INITED + "_" + xidRMs.size());
-                utils.storeObject(xids, "data/" + xidsStatusPath);
+                xids.put(xid, "INITED_" + relatedRMs.size());
+                storeLog(xids, statusLog);
             }
         }
-        return INITED;
     }
 
     // 开始新的事务，为其分配唯一的XID，并在数据结构中记录相应的状态。
     @Override
     public int start() throws RemoteException {
         synchronized (xidCounter) {
-            Integer newXid = xidCounter++;
-            utils.storeObject(xidCounter, "data/" + xidCounterPath);
+            Integer xid = xidCounter++;
+            storeLog(xidCounter, counterLog);
 
-            // store xid
             synchronized (xids) {
-                xids.put(newXid, INITED + "_" + 0);
-                utils.storeObject(xids, "data/" + xidsStatusPath);
+                xids.put(xid, "INITED_" + 0);
+                storeLog(xids, counterLog);
             }
 
             synchronized (RMs) {
-                RMs.put(newXid, new HashSet<>());
+                RMs.put(xid, new HashSet<>());
             }
 
-            return newXid;
+            return xid;
         }
     }
 
@@ -156,85 +176,83 @@ public class TransactionManagerImpl
     @Override
     public boolean commit(int xid) throws RemoteException, TransactionAbortedException, InvalidTransactionException {
         if (!xids.containsKey(xid))
-            throw new TransactionAbortedException(xid, "TM");
-        HashSet<ResourceManager> xidRMs = RMs.get(xid);
-        // 2pc
-        // prepare phase
+            throw new TransactionAbortedException(xid, "TM aborted");
+        HashSet<ResourceManager> relatedRMs = RMs.get(xid);
         synchronized (xids) {
-            xids.put(xid, PREPARING + "_" + xidRMs.size());
-            utils.storeObject(xids, "data/" + xidsStatusPath);
+            xids.put(xid, "PREPARE_" + relatedRMs.size());
+            storeLog(xids, statusLog);
         }
-        for (ResourceManager rm : xidRMs) {
-            try {
-                System.out.println("call rm prepare: " + xid + ": " + rm.getID());
-                if (!rm.prepare(xid)) {
-                    // rm is not prepared.
-                    this.abort(xid);
-                    throw new TransactionAbortedException(xid, "RM aborted");
-                }
-            } catch (Exception e) {
-                // rm dies before or during prepare
-                System.out.println("rm prepare failed: " + rm);
-                e.printStackTrace();
-                this.abort(xid);
-                throw new TransactionAbortedException(xid, "RM aborted");
-            }
-        }
-        // prepared, die before commit if needed
-        if (dieTime.equals("BeforeCommit"))
-            dieNow();
 
-        // log commit with xid
+        prepareRMs(xid, relatedRMs);
+        checkDieTime("BeforeCommit");
+        
         synchronized (xids) {
-            xids.put(xid, COMMITTED + "_" + xidRMs.size());
-            utils.storeObject(xids, "data/" + xidsStatusPath);
+            xids.put(xid, "COMMITTED_" + relatedRMs.size());
+            storeLog(xids, statusLog);
         }
 
-        // die after commit log was written if needed.
-        if (dieTime.equals("AfterCommit"))
-            dieNow();
+        checkDieTime("AfterCommit");
 
-        // commit phase
-        for (ResourceManager rm : xidRMs) {
-            try {
-                System.out.println("call rm commit " + xid + ": " + rm.getID());
-                rm.commit(xid); // the function return means done signal.
-            } catch (Exception e) {
-                // rm dies before or during commit
-                System.out.println("rm is down before commit: " + rm);
-                // let the rm to be recovered when it is relaunched.
-                setRecoveryLater(xid, 1);
-            }
-        }
+        commitRMs(xid, relatedRMs);
 
-        // commit log record + completion log record
-        // do nothing. actually do not need completion log here because the failure of the following
-        // codes can not be checked in our test condition.233
         synchronized (RMs) {
-            // remove committed transactions
             RMs.remove(xid);
         }
         synchronized (xids) {
             xids.remove(xid);
-            utils.storeObject(xids, "data/" + xidsStatusPath);
+            storeLog(xids, statusLog);
         }
 
         System.out.println("Commit xid: " + xid);
-        // success
         return true;
+    }
+
+    private void checkDieTime(String time) throws RemoteException {
+        if (dieTime.equals(time))
+            dieNow();
+    }
+
+    private void prepareRMs(int xid, HashSet<ResourceManager> RMs)
+            throws TransactionAbortedException, RemoteException, InvalidTransactionException {
+        for (ResourceManager rm : RMs) {
+            try {
+                System.out.println("rm: " + rm.getID() + " try to prepare transaction: " + xid);
+                if (!rm.prepare(xid)) {
+                    this.abort(xid);
+                    throw new TransactionAbortedException(xid, "RM aborted");
+                }
+                System.out.println("rm: " + rm.getID() + " prepare successfully");
+            } catch (Exception e) {
+                System.out.println("rm prepare failed: " + rm);
+                e.printStackTrace();
+                abort(xid);
+                throw new TransactionAbortedException(xid, "RM aborted");
+            }
+        }
+    }
+
+    private void commitRMs(int xid, HashSet<ResourceManager> RMs) {
+        for (ResourceManager rm : RMs) {
+            try {
+                System.out.println("rm: " + rm.getID() + " try to commit transaction: " + xid);
+                rm.commit(xid);
+                System.out.println("rm: " + rm.getID() + " commit successfully");
+            } catch (Exception e) {
+                System.out.println("rm commit failed: " + rm);
+                setRecoveryLater(xid, 1);
+            }
+        }
     }
 
     // 在某些资源管理器故障后，将事务标记为需要在后续操作中进行恢复。
     private void setRecoveryLater(int xid, int num) {
-        synchronized (xids_to_be_recovered) {
-            // use number instead of rm info, for the rm message is difficult to get
-            // TODO more solid implementation is needed.
-            if (xids_to_be_recovered.containsKey(xid)) {
-                xids_to_be_recovered.put(xid, xids_to_be_recovered.get(xid) + num);
+        synchronized (xidsToRecover) {
+            if (xidsToRecover.containsKey(xid)) {
+                xidsToRecover.put(xid, xidsToRecover.get(xid) + num);
             } else {
-                xids_to_be_recovered.put(xid, num);
+                xidsToRecover.put(xid, num);
             }
-            utils.storeObject(xids_to_be_recovered, xidsToBeRecoveredPath);
+            IOUtil.storeObject(xidsToRecover, needRecoveredLog);
         }
     }
 
@@ -242,39 +260,29 @@ public class TransactionManagerImpl
     @Override
     public void abort(int xid) throws RemoteException, InvalidTransactionException {
         if (!xids.containsKey(xid)) {
-            throw new InvalidTransactionException(xid, "abort");
+            throw new InvalidTransactionException(xid, "TM aborted");
         }
-        HashSet<ResourceManager> xidRMs = RMs.get(xid);
-        for (ResourceManager rm : xidRMs) {
+        HashSet<ResourceManager> relatedRMs = RMs.get(xid);
+        for (ResourceManager rm : relatedRMs) {
             try {
-                System.out.println("call rm abort " + xid + " : " + rm.getID());
+                System.out.println("rm: " + rm.getID() + " try to abort transaction: " + xid);
                 rm.abort(xid);
-                System.out.println("rm abort success: " + rm.getID());
+                System.out.println("rm: " + rm.getID() + " abort successfully");
             } catch (Exception e) {
-                System.out.println("Some RM is down: " + rm);
+                System.out.println("rm abort failed:: " + rm);
             }
         }
         synchronized (RMs) {
-            // remove aborted transactions
             RMs.remove(xid);
         }
         synchronized (xids) {
             if (xids.containsKey(xid)) {
                 xids.remove(xid);
-                utils.storeObject(xids, "data/" + xidsStatusPath);
+                storeLog(xids, statusLog);
             }
         }
 
-        System.out.println("Abort xid: " + xid);
+        System.out.println("abort xid: " + xid);
     }
 
-    public boolean dieNow() throws RemoteException {
-        System.exit(1);
-        return true; // We won't ever get here since we exited above;
-        // but we still need it to please the compiler.
-    }
-
-    public void setDieTime(String dieTime) {
-        this.dieTime = dieTime;
-    }
 }

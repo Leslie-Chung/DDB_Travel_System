@@ -6,7 +6,7 @@ import java.rmi.Naming;
  * A toy client of the Distributed Travel Reservation System.
  */
 
-public class SimpleClient {
+public class TestClient {
 
     public static void main(String args[]) {
         String rmiPort = System.getProperty("rmiPort");

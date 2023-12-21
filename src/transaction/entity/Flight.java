@@ -2,14 +2,9 @@ package transaction.entity;
 
 import transaction.InvalidIndexException;
 
-/**
- * @author Duocai Wu
- * @Date 2019/7/19
- * @Time 14:46
- */
 public class Flight extends ResourceItem {
     private String flightNum;
-    private int price; // every seat has the same price
+    private int price;
     private int numSeats;
     private int numAvail;
 
@@ -45,10 +40,6 @@ public class Flight extends ResourceItem {
 
     public void bookSeats(int num) {
         this.numAvail -= num;
-    }
-
-    public void unbookSeats(int num) {
-        this.numAvail += num;
     }
 
     public void addSeats(int numSeats) {

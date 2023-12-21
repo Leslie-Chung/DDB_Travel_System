@@ -12,19 +12,19 @@ import java.util.Vector;
 
 /**
  * exit(0): test passed
- * (1): internal test error (incl. any uncaught exceptions)
- * (2): test failed
- * <p>
+ *     (1): internal test error (incl. any uncaught exceptions)
+ *     (2): test failed
+ *
  * Test script syntax:
- * #threads
- * line*
- * <p>
+ *  #threads
+ *  line*
+ *
  * line: xid launch TM|RMFlights|RMRooms|RMCars|RMCustomers|WC|ALL
- * call func param*
- * return val?
- * except exctype?
- * sleep millisec
- * exit
+ *           call func param*
+ *           return val?
+ *           except exctype?
+ *           sleep millisec
+ *           exit
  */
 
 public class Client {

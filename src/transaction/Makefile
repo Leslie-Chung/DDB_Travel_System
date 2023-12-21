@@ -15,7 +15,7 @@ server : ResourceManager.class \
          InvalidTransactionException.class \
          TransactionAbortedException.class
 
-client: Client.class SimpleClient.class
+client: Client.class TestClient.class
 
 runregistry :
 	rmiregistry -J-classpath -J$(PROJECTROOT) $(RMIREGPORT)
@@ -41,8 +41,8 @@ runwc : server
 runclient : client
 	java -classpath $(PROJECTROOT) -DrmiPort=$(RMIREGPORT) transaction.Client
 
-runsimpleclient : client
-	java -classpath $(PROJECTROOT) -DrmiPort=$(RMIREGPORT) transaction.SimpleClient
+runtestclient : client
+	java -classpath $(PROJECTROOT) -DrmiPort=$(RMIREGPORT) transaction.TestClient
 
 clean :
 	$(RM) *.class

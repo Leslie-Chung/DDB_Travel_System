@@ -1,7 +1,6 @@
 package lockmgr;
 
 import java.util.Vector;
-import java.util.Enumeration;
 
 /*
  * HashTable class for the Lock Manager.
@@ -118,10 +117,6 @@ public class TPHashTable {
             }
         }
         return null;
-    }
-
-    private void printStatus(String msg, int hashSlot, XObj xobj) {
-        System.out.println(this.getClass() + "::" + msg + "(slot" + hashSlot + ")::" + xobj.toString());
     }
 
     public Vector allElements() {

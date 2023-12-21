@@ -8,10 +8,6 @@ import transaction.InvalidIndexException;
 
 import java.io.Serializable;
 
-/**
- * @author RAdmin
- * <p>
- */
 public abstract class ResourceItem implements Cloneable, Serializable {
     protected boolean isdeleted = false;
 

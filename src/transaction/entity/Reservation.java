@@ -10,26 +10,30 @@ import transaction.InvalidIndexException;
  * 预定
  */
 public class Reservation extends ResourceItem {
-    public static final int RESERVATION_TYPE_FLIGHT = 1;
-    public static final int RESERVATION_TYPE_HOTEL = 2;
-    public static final int RESERVATION_TYPE_CAR = 3;
-    public static final String INDEX_CUSTNAME = "custName";
+	public static final String INDEX_CUSTNAME = "custName";
+
+	public static final int RESERVATION_TYPE_FLIGHT = 1;
+
+	public static final int RESERVATION_TYPE_HOTEL = 2;
+
+	public static final int RESERVATION_TYPE_CAR = 3;
+
+	protected String custName;
+
+	protected int resvType;
+
+	protected String resvKey;
+
+	protected boolean isdeleted = false;
+
     public static final String INDEX_RESERV_KEY = "resvKey";
-    private String custName;
+    private int bill;
 
-    private int resvType;
-
-    private String resvKey;
-
-    private int price;
-
-    private boolean isdeleted = false;
-
-    public Reservation(String custName, int resvType, String resvKey, int price) {
+    public Reservation(String custName, int resvType, String resvKey, int bill) {
         this.custName = custName;
         this.resvType = resvType;
         this.resvKey = resvKey;
-        this.price = price;
+        this.bill = bill;
     }
 
     public Object getIndex(String indexName) throws InvalidIndexException {
@@ -43,6 +47,10 @@ public class Reservation extends ResourceItem {
 
     public Object getKey() {
         return new ReservationKey(custName, resvType, resvKey);
+    }
+
+    public int getBill() {
+        return bill;
     }
 
     /**
@@ -68,12 +76,8 @@ public class Reservation extends ResourceItem {
 
     public Object clone() {
         Reservation o = new Reservation(getCustName(), getResvType(),
-                getResvKey(), getPrice());
+                getResvKey(), getBill());
         o.isdeleted = isdeleted;
         return o;
-    }
-
-    public int getPrice() {
-        return price;
     }
 }

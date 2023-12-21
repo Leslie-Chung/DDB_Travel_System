@@ -29,6 +29,18 @@ public class ResourceManagerImpl extends java.rmi.server.UnicastRemoteObject imp
     // RMTable -> <key, resourceitem> 和 <key, locktype>
     private Hashtable tables = new Hashtable();
 
+    public Collection<ResourceItem> getUpdatedRows(int xid, String tablename)
+    {
+        RMTable table = getTable(xid, tablename);
+        return new ArrayList(table.table.values());
+    }
+
+    public Collection<ResourceItem> getUpdatedRows(String tablename)
+    {
+        RMTable table = getTable(tablename);
+        return new ArrayList(table.table.values());
+    }
+
     /*
      * 检查传入的RMI名称是否有效。
      * 设置myRMIName。
@@ -36,11 +48,6 @@ public class ResourceManagerImpl extends java.rmi.server.UnicastRemoteObject imp
      * 启动一个线程定期与事务管理器TM连接。
      */
     public ResourceManagerImpl(String rmiName) throws RemoteException {
-        // check whether the resource is valid
-        if (!(rmiName.equals(RMINameCars) || rmiName.equals(RMINameCustomers) ||
-                rmiName.equals(RMINameFlights) || rmiName.equals(RMINameRooms)))
-            throw new RemoteException("None valid Resource Name : " + rmiName);
-
         myRMIName = rmiName;
         dieTime = "NoDie";
 
@@ -135,10 +142,6 @@ public class ResourceManagerImpl extends java.rmi.server.UnicastRemoteObject imp
             if (datas[i].isDirectory()) {
                 continue;
             }
-            // log file
-            if (datas[i].getName().endsWith(".log")) {
-                continue;
-            }
             getTable(datas[i].getName());
         }
 
@@ -155,8 +158,6 @@ public class ResourceManagerImpl extends java.rmi.server.UnicastRemoteObject imp
             for (int j = 0; j < xdatas.length; j++) {
                 RMTable xtable = getTable(xid, xdatas[j].getName());
                 try {
-//                    reacquire all locks for the transaction
-//                    should ask coordinator for the status of transaction later
                     xtable.relockAll();
                 } catch (DeadlockException e) {
                     throw new RuntimeException(e);
@@ -180,14 +181,13 @@ public class ResourceManagerImpl extends java.rmi.server.UnicastRemoteObject imp
             for (Iterator iter = xids.iterator(); iter.hasNext(); ) {
                 int xid = ((Integer) iter.next()).intValue();
                 System.out.println(myRMIName + " Re-enlist to TM with xid: " + xid);
-                // ask coordinator for the status of transaction
                 String status = tm.enlist(xid, this);
-                if (status.equals(TransactionManager.ABORTED)) {
-                    System.out.println("xid has been aborted: " + xid);
+                if (status.equals("ABORTED")) {
+                    System.out.println("transaction: " + xid + " has been aborted");
                     abort(xid);
                     continue;
-                } else if (status.equals(TransactionManager.COMMITTED)) {
-                    System.out.println("xid has been committed: " + xid);
+                } else if (status.equals("COMMITTED")) {
+                    System.out.println("transaction: " + xid + " has been committed");
                     commit(xid);
                     continue;
                 }
@@ -197,7 +197,6 @@ public class ResourceManagerImpl extends java.rmi.server.UnicastRemoteObject imp
             }
             System.out.println(myRMIName + " bound to TM");
         } catch (Exception e) {
-            e.printStackTrace();
             System.err.println(myRMIName + " enlist error:" + e);
             return false;
         }
@@ -306,11 +305,11 @@ public class ResourceManagerImpl extends java.rmi.server.UnicastRemoteObject imp
     }
 
     protected HashSet loadTransactionLogs() {
-        return (HashSet) utils.loadObject("data/transactions.log");
+        return (HashSet) IOUtil.loadObject("log/transactions.log");
     }
 
     protected boolean storeTransactionLogs(HashSet xids) {
-        return utils.storeObject(xids, "data/transactions.log");
+        return IOUtil.storeObject(xids, "log/transactions.log");
     }
 
     public ResourceItem query(int xid, String tablename, Object key) throws DeadlockException,
@@ -331,22 +330,15 @@ public class ResourceManagerImpl extends java.rmi.server.UnicastRemoteObject imp
         if (dieTime.equals("AfterEnlist"))
             dieNow();
 
-        // read twice, first to get lock, then to read.
-        // if the item hasn't been locked by other transactions, just read twice and the results are same
-        // if the item has been locked by other transactions, then wait for lock and read new result.
-        // first to get lock
         RMTable table = getTable(xid, tablename);
         ResourceItem item = table.get(key);
         if (item != null && !item.isDeleted()) {
             table.lock(key, LockManager.READ);
-
-            // then to read values
-            // remove old value
-            Hashtable xidtables = (Hashtable) tables.get(xid); // can not be null
-            synchronized (xidtables) {
-                xidtables.remove(tablename);
+            // 为了防止获取锁之前被修改过，这里需要重新读取一次
+            Hashtable relatedtables = (Hashtable) tables.get(xid); // 获取与xid相关的<tablename, rmtables(key, item)>
+            synchronized (relatedtables) {
+                relatedtables.remove(tablename);
             }
-            // read new value
             table = getTable(xid, tablename);
             item = table.get(key);
             if (!storeTable(table, new File("data/" + xid + "/" + tablename))) {
@@ -376,11 +368,6 @@ public class ResourceManagerImpl extends java.rmi.server.UnicastRemoteObject imp
             dieNow();
 
         Collection<ResourceItem> result = new ArrayList<>();
-
-        // read twice, first to get lock, then to read.
-        // if the item hasn't been locked by other transactions, just read twice and the results are same
-        // if the item has been locked by other transactions, then wait for lock and read new result.
-        // first to get lock
         RMTable table = getTable(xid, tablename);
         synchronized (table) {
             for (Iterator iter = table.keySet().iterator(); iter.hasNext(); ) {
@@ -392,20 +379,16 @@ public class ResourceManagerImpl extends java.rmi.server.UnicastRemoteObject imp
             }
         }
 
-        // then to read values
-        // remove old value
         Hashtable xidtables = (Hashtable) tables.get(xid); // can not be null
         synchronized (xidtables) {
             xidtables.remove(tablename);
         }
-        // read new value
         table = getTable(xid, tablename);
         synchronized (table) {
             for (Iterator iter = table.keySet().iterator(); iter.hasNext(); ) {
                 Object key = iter.next();
                 ResourceItem item = table.get(key);
                 if (item != null && !item.isDeleted() && item.getIndex(indexName).equals(indexVal)) {
-                    // table.lock(key, LockManager.READ); // have been locked
                     result.add(item);
                 }
             }

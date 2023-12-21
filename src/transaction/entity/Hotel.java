@@ -2,14 +2,9 @@ package transaction.entity;
 
 import transaction.InvalidIndexException;
 
-/**
- * @author Duocai Wu
- * @Date 2019/7/19
- * @Time 14:53
- */
 public class Hotel extends ResourceItem {
-    private String location; // key, there is only one hotel at a location
-    private int price; // every room has the same price
+    private String location;
+    private int price;
     private int numRooms;
     private int numAvail;
 
@@ -37,11 +32,6 @@ public class Hotel extends ResourceItem {
         this.numAvail += num;
     }
 
-    public void deleteRooms(int num) {
-        this.numRooms -= num;
-        this.numAvail -= num;
-    }
-
     public int getNumAvail() {
         return numAvail;
     }
@@ -49,9 +39,7 @@ public class Hotel extends ResourceItem {
     public void bookRooms(int num) {
         this.numAvail -= num;
     }
-    public void unbookRooms(int num) {
-        this.numAvail += num;
-    }
+
     public int getPrice() {
         return price;
     }
