@@ -100,7 +100,7 @@ public class TransactionManagerImpl
     }
 
     private void createDataDir() {
-        File dataDir = new File("data");
+        File dataDir = new File("log");
         if (!dataDir.exists()) {
             dataDir.mkdirs();
         }
