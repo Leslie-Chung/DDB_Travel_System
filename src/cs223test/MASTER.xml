@@ -1,9 +1,6 @@
 <?xml version="1.0" ?>
 <!DOCTYPE tests [
         <!ELEMENT tests (test)+>
-        <!ATTLIST tests
-                totalpoints CDATA "100">
-        <!ELEMENT test (#PCDATA)>
         <!ATTLIST test
                 id         ID            #REQUIRED
                 cleardata  (true|false)  "true"
@@ -13,94 +10,70 @@
 
 <!-- Project Part 1 -->
 
-<tests totalpoints="50">
-    <test id="Transaction_L_WR" fpoints="1">
+<tests totalpoints="47">
+    <!-- Transaction -->
+    <test id="Transaction_WriteRead" fpoints="1">
         1. add..应该获取所有必要的锁。
         2. query..应该首先等待锁，然后从磁盘读取数据。
     </test>
 
-    <!-- failed -->
-    <test id="Transaction_L_RRWW" fpoints="1">
-        死锁。 1 读 A、2 读 A、1 写 A、2 写 A。
-        当前的锁实现可能未通过此操作。
+    <test id="Transaction_DeadLock" fpoints="1">
+        死锁
     </test>
 
-    <!-- failed -->
-    <test id="Transaction_L_RRWW_PASS" fpoints="1">
-        死锁。 1 读 A、2 读 A、1 写 A、2 写 A。
-        如果 1 或 2 中止，则应处理另一个。
-        但实际上锁是基于时间的。 1 将首先中止，然后是 2
-        将被中止，因为 1 和 2 几乎同时等待锁。
-    </test>
-
-    <test id="Transaction_L_RRWW_WAIT" fpoints="1">
-        死锁。 1读A，2读A，1写A，（等待1 死锁），2写A。
-    </test>
-
-    <test id="Transaction_Atom1" fpoints="1">
-        事务原子性测试。
-        如果未完成，则不应执行事务。
-    </test>
-
-    <test id="Transaction_SABQ" fpoints="1">
+    <test id="Transaction_ReverseQuery" fpoints="1">
         语义测试查询之间的添加操作。
         预订时应记录价格。
     </test>
 
-    <test id="Transaction_Atom2" fpoints="1">
+    <test id="Transaction_Atomicity" fpoints="1">
         事务原子性测试。
-       如果没有异常，交易应该完整执行。
+        如果未完成，则不应执行事务。
     </test>
 
     <test id="Transaction_Consistency" fpoints="1">
         事务一致性测试。
-        无论是否进行预订，某个位置的房间总数都保持一致：
     </test>
 
     <test id="Transaction_Isolation" fpoints="1">
         事务隔离性测试。
-        不同事务中的航班的变更需分别执行。
-    </test>
-
-    <test id="Transaction_TDC1" fpoints="1">
-        测试事务:删除客户。
-    </test>
-
-    <test id="Transaction_TDCAb" fpoints="1">
-        测试事务：删除客户然后中止,接着添加新客户，查询中止前和中止后的客户。
-    </test>
-
-    <test id="Transaction_TDCN" fpoints="1">
-        测试事务：删除客户然后添加新的同名客户，查询在第一次添加和第一次删除之间的客户，
-        然后查询在第一次删除和第二次添加之间的客户。
     </test>
 
     <!-- failed -->
-    <test id="Transaction_Durability" fpoints="1">
+    <test id="Transaction_Duration" fpoints="1">
         事务持久性测试。
-        交易完成后，无正当理由不会回滚。
     </test>
 
-    <test id="Transaction_2kill13" fpoints="1">
-        WWWW 的三线程版本。当检测到死锁时，线程应该释放它的资源。
-        第一个线程1得到汽车和房间，线程3得到航班，然后线程1请求航班并由于检测到死锁而被kill,
-        然后线程 2 获得线程 1 的遗产（房间），随后线程 3 请求房间并被kill，
-        最后，线程2成功执行。
+    <test id="Transaction_DeleteCustomer" fpoints="1">
+        删除客户。
     </test>
 
-    <test id="Transaction_Border" fpoints="1">
+    <test id="Transaction_DeleteAddQueryCustomer" fpoints="1">
+        删除客户然后中止,接着添加新客户，查询中止前和中止后的客户。
+    </test>
+
+    <test id="Transaction_DeleteAddQuery2Customer" fpoints="1">
+        删除客户然后添加新的同名客户，查询在第一次添加和第一次删除之间的客户，
+        然后查询在第一次删除和第二次添加之间的客户。
+    </test>
+
+    <test id="Transaction_DeadLock3" fpoints="1">
+        三线程死锁检测。
+    </test>
+
+    <test id="Transaction_LiveLock" fpoints="1">
+        测试活锁。
+    </test>
+
+    <test id="Transaction_Bound" fpoints="1">
         测试边界条件。
     </test>
 
-    <test id="Transaction_Limit" fpoints="1">
-        测试在删除航班、房间或汽车时的限制条件。
+    <test id="Transaction_Delete" fpoints="1">
+        测试在删除有限制的Resource。
     </test>
 
-    <test id="Transaction_TLiLock" fpoints="1">
-        测试“活锁”。
-        首先，三个线程获取三种不同的资源，如果它们想要获取更多的资源，就会有一个
-        “死锁”，我们尝试让某个线程先提交，从而使一些资源可用并解决活锁。
-    </test>
+
     <!-- Basic tests -->
 
     <test id="Basic_start" fpoints="1" fnext="_END_">
