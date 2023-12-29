@@ -13,238 +13,246 @@
 
 <!-- Project Part 1 -->
 
-<tests totalpoints="100">
+<tests totalpoints="50">
+    <test id="Transaction_L_WR" fpoints="1">
+        1. add..应该获取所有必要的锁。
+        2. query..应该首先等待锁，然后从磁盘读取数据。
+    </test>
 
+    <!-- failed -->
+    <test id="Transaction_L_RRWW" fpoints="1">
+        死锁。 1 读 A、2 读 A、1 写 A、2 写 A。
+        当前的锁实现可能未通过此操作。
+    </test>
+
+    <!-- failed -->
+    <test id="Transaction_L_RRWW_PASS" fpoints="1">
+        死锁。 1 读 A、2 读 A、1 写 A、2 写 A。
+        如果 1 或 2 中止，则应处理另一个。
+        但实际上锁是基于时间的。 1 将首先中止，然后是 2
+        将被中止，因为 1 和 2 几乎同时等待锁。
+    </test>
+
+    <test id="Transaction_L_RRWW_WAIT" fpoints="1">
+        死锁。 1读A，2读A，1写A，（等待1 死锁），2写A。
+    </test>
+
+    <test id="Transaction_Atom1" fpoints="1">
+        事务原子性测试。
+        如果未完成，则不应执行事务。
+    </test>
+
+    <test id="Transaction_SABQ" fpoints="1">
+        语义测试查询之间的添加操作。
+        预订时应记录价格。
+    </test>
+
+    <test id="Transaction_Atom2" fpoints="1">
+        事务原子性测试。
+       如果没有异常，交易应该完整执行。
+    </test>
+
+    <test id="Transaction_Consistency" fpoints="1">
+        事务一致性测试。
+        无论是否进行预订，某个位置的房间总数都保持一致：
+    </test>
+
+    <test id="Transaction_Isolation" fpoints="1">
+        事务隔离性测试。
+        不同事务中的航班的变更需分别执行。
+    </test>
+
+    <test id="Transaction_TDC1" fpoints="1">
+        测试事务:删除客户。
+    </test>
+
+    <test id="Transaction_TDCAb" fpoints="1">
+        测试事务：删除客户然后中止,接着添加新客户，查询中止前和中止后的客户。
+    </test>
+
+    <test id="Transaction_TDCN" fpoints="1">
+        测试事务：删除客户然后添加新的同名客户，查询在第一次添加和第一次删除之间的客户，
+        然后查询在第一次删除和第二次添加之间的客户。
+    </test>
+
+    <!-- failed -->
+    <test id="Transaction_Durability" fpoints="1">
+        事务持久性测试。
+        交易完成后，无正当理由不会回滚。
+    </test>
+
+    <test id="Transaction_2kill13" fpoints="1">
+        WWWW 的三线程版本。当检测到死锁时，线程应该释放它的资源。
+        第一个线程1得到汽车和房间，线程3得到航班，然后线程1请求航班并由于检测到死锁而被kill,
+        然后线程 2 获得线程 1 的遗产（房间），随后线程 3 请求房间并被kill，
+        最后，线程2成功执行。
+    </test>
+
+    <test id="Transaction_Border" fpoints="1">
+        测试边界条件。
+    </test>
+
+    <test id="Transaction_Limit" fpoints="1">
+        测试在删除航班、房间或汽车时的限制条件。
+    </test>
+
+    <test id="Transaction_TLiLock" fpoints="1">
+        测试“活锁”。
+        首先，三个线程获取三种不同的资源，如果它们想要获取更多的资源，就会有一个
+        “死锁”，我们尝试让某个线程先提交，从而使一些资源可用并解决活锁。
+    </test>
     <!-- Basic tests -->
 
-    <test id="Bstart" fpoints="100" fnext="_END_">
-        start() call fails.
+    <test id="Basic_start" fpoints="1" fnext="_END_">
+        start() 调用失败。
     </test>
 
-    <test id="Bstcmt" fpoints="100" fnext="_END_">
-        Cannot commit a non-op transaction.
+    <test id="Basic_start_commit" fpoints="1" fnext="_END_">
+        无法提交没有任何操作的事务。
     </test>
 
-    <test id="Bstabt" fpoints="100" fnext="_END_">
-        Cannot abort a non-op transaction.
+    <test id="Basic_start_abort" fpoints="1" fnext="_END_">
+        无法中止没有任何操作的事务。
     </test>
 
-    <test id="Badd" fpoints="100" fnext="_END_">
-        Cannot add flight/rooms/cars/customer.
+    <test id="Basic_add" fpoints="1" fnext="_END_">
+        无法添加 flight/rooms/cars/customer。
     </test>
 
-    <test id="Baddcmt" fpoints="100" fnext="_END_">
-        commit fails after adding flight/rooms/cars/customer.
+    <test id="Basic_add_commit" fpoints="1" fnext="_END_">
+        添加 flight/rooms/cars/customer后提交失败。
     </test>
 
-    <test id="Baddcmtrd" fpoints="100" fnext="_END_">
-        Query of flight/rooms/cars/customer does not return correct result.
+    <test id="Basic_add_commit_read" fpoints="1" fnext="_END_">
+        flight/rooms/cars/customer 的查询没有返回正确的结果。
     </test>
 
-    <test id="Baddcmtrsv" fpoints="100" fnext="_END_">
-        Cannot make reservations.
+    <test id="Basic_add_commit_reserve" fpoints="1" fnext="_END_">
+        无法预订。
     </test>
 
-    <test id="Baddabt" fpoints="100" fnext="_END_">
-        abort fails after adding flight/rooms/cars/customer.
+    <test id="Basic_add_abort" fpoints="1" fnext="_END_">
+        添加 flight/rooms/cars/customer后中止失败.
     </test>
 
-    <test id="Baddabtrd" fpoints="100" fnext="_END_">
-        Query of flight/rooms/cars/customer does not return correct result after an abort.
+    <test id="Basic_add_abort_read" fpoints="1" fnext="_END_">
+        flight/rooms/cars/customer 的查询在中止后没有返回正确的结果。
     </test>
 
 
     <!--   Semantic tests-->
 
-    <test id="Saddcmtdelcmt" fpoints="10">
-        Cannot delete items.
+    <!-- failed -->
+    <test id="Semantic_add_commit_delete_commit" fpoints="1">
+        无法删除条目。
     </test>
 
-    <test id="Sbill">
-        Does not compute correct bill.
+    <test id="Semantic_bill">
+        无法计算正确的账单。
     </test>
 
-    <test id="Siticmt">
-        query result incorrect after reserveItinerary commits.
+    <test id="Semantic_itinerary_commit">
+        reserveItinerary提交后查询结果不正确。
     </test>
 
-    <test id="Sitiabt">
-        query result incorrect after reserveItinerary aborts.
+    <test id="Semantic_itinerary_abort">
+        reserveItinerary中止后查询结果不正确。
     </test>
 
-    <test id="Sitifail">
-        state is not restored after reserveItinerary fails.
+    <test id="Semantic_itinerary_fail">
+        reserveItinerary 失败后状态未恢复。
     </test>
 
-    <test id="Saddrd">
-        Cannot query items added earlier in same transaction.
+    <test id="Semantic_add_read">
+        无法查询同一事务中先前添加的项目。
     </test>
 
-    <test id="Sbadxid">
-        Bogus xid does not throw InvalidTransactionException.
+    <test id="Semantic_badxid">
+        伪造的 xid 不会抛出 InvalidTransactionException。
     </test>
 
 
     <!--   Locking tests-->
 
-    <test id="Lconc" fpoints="5">
-        Two non-conflicting concurrent transactions fail.
+    <test id="Lock_concurrent" fpoints="1">
+        两个不冲突的并发事务失败。
     </test>
 
-    <test id="Liti1">
-        reserveItinerary does not acquire all necessary locks.
+    <test id="Lock_itinerary1">
+        reserveItinerary 没有获取所有必要的锁。
     </test>
 
-    <test id="Liti2">
-        reserveItinerary does not acquire all necessary locks.
+    <test id="Lock_itinerary2">
+        reserveItinerary 没有获取所有必要的锁。
     </test>
 
-    <test id="Liti3">
-        reserveItinerary does not acquire all necessary locks.
+    <!-- failed -->
+    <test id="Lock_itinerary13">
+        reserveItinerary 没有获取所有必要的锁。
     </test>
 
-    <test id="Ldeadlock" fpoints="5">
-        Deadlocked transaction is not aborted.
+    <test id="Lock_deadlock" fpoints="1">
+        死锁事务没有中止。
     </test>
 
 
     <!-- Failure tests -->
 
-    <test id="FdieAll" fpoints="5">
-        After all components fail, previous committed transactions are lost.
+    <!-- failed -->
+    <test id="Failure_dieAll" fpoints="1">
+        所有组件宕机后，之前提交的事务都会丢失。
     </test>
 
-    <test id="FdieRM" fpoints="5">
-        After RM fails, transaction is not forcibly aborted.
+    <!-- failed -->
+    <test id="Failure_dieRM" fpoints="1">
+        RM宕机后，事务不会被强制中止。
     </test>
 
-    <test id="FdienpRM" fpoints="5">
-        After non-participant RM fails, transaction cannot be committed.
+    <!-- failed -->
+    <test id="Failure_dienpRM" fpoints="1">
+        非参与者RM宕机后，事务无法提交。
     </test>
 
-    <test id="FdieWC" fpoints="5">
-        After WC fails, transaction cannot be committed.
+    <!-- failed -->
+    <test id="Failure_dieWC" fpoints="1">
+        WC宕机后，事务无法提交。
     </test>
 
-    <test id="FdieTM" fpoints="5">
-        After TM fails, transaction is not forcibly aborted.
+    <test id="Failure_dieTM" fpoints="1">
+       TM宕机后，事务不会被强制中止。
     </test>
 
-    <test id="FdieRMAfterEnlist" fpoints="5">
-        dieRMAfterEnlist: transaction is not forcibly aborted.
+    <!-- failed -->
+    <test id="Failure_dieRMAfterEnlist" fpoints="1">
+       在Enlist后RM宕机: 事务不会被强制中止。
     </test>
 
-    <test id="FdieRMBeforePrepare" fpoints="5">
-        dieRMBeforePrepare: transaction is not forcibly aborted.
+    <!-- failed -->
+    <test id="Failure_dieRMBeforePrepare" fpoints="1">
+        在Prepare之前RM宕机: 事务不会被强制中止。
     </test>
 
-
-    <test id="FdieRMAfterPrepare" fpoints="5">
-        dieRMAfterPrepare: transaction is not forcibly aborted.
+    <!-- failed -->
+    <test id="Failure_dieRMAfterPrepare" fpoints="1">
+        在Prepare之后RM宕机: 事务不会被强制中止。
     </test>
 
-    <test id="FdieTMBeforeCommit" fpoints="5">
-        dieTMBeforeCommit: transaction is not forcibly aborted.
+    <test id="Failure_dieTMBeforeCommit" fpoints="1">
+        在Commit之前TM宕机: 事务不会被强制中止。
     </test>
 
-    <test id="FdieTMAfterCommit" fpoints="5">
-        dieTMAfterCommit: transaction is not committed.
+    <!-- failed -->
+    <test id="Failure_dieTMAfterCommit" fpoints="1">
+        在Commit之后TM宕机: 事务没有提交。
     </test>
 
-    <test id="FdieRMBeforeCommit" fpoints="5">
-        dieRMBeforeCommit: RM does not recover properly.
+    <!-- failed -->
+    <test id="Failure_dieRMBeforeCommit" fpoints="1">
+        在Commit之前RM宕机Commit: RM 无法正常恢复。
     </test>
 
-    <test id="Funlock" fpoints="5">
-        RM releases locks before final commit.
+    <test id="Failure_unlock" fpoints="1">
+        RM 在最终Commit之前释放锁。
     </test>
 
-    <!--    new tests-->
-    <!--    concurrency tests-->
-    <test id="T_L_WR" fpoints="0">
-        1. add.. should acquire all necessary locks.
-        2. query.. should wait locks first and then read data from disk.
-    </test>
-
-    <test id="T_L_RRWW" fpoints="0">
-        dead lock. 1 read A, 2 read A, 1 write A, 2 write A.
-        This maybe not passed by current lock implementation.
-    </test>
-
-    <test id="T_L_RRWW_PASS" fpoints="0">
-        dead lock. 1 read A, 2 read A, 1 write A, 2 write A.
-        if 1 or 2 is aborted, the other should be processed.
-        But actually the lock is based on time. 1 will be abort first, and then 2
-        will be abort because 1 and 2 wait the lock almost at the same time.
-    </test>
-
-    <test id="T_L_RRWW_WAIT" fpoints="0">
-        dead lock. 1 read A, 2 read A, 1 write A, (wait 1 dead lock), 2 write A.
-    </test>
-
-    <test id="T_Atom1" fpoints="0">
-        Transaction Atom test.
-        Transaction should not be executed if not complete.
-    </test>
-
-    <test id="T_SABQ" fpoints="0">
-        Semantic test add operation between query.
-        Reservation should record the price.
-    </test>
-
-    <test id="T_Atom2" fpoints="0">
-        Transaction Atom test.
-        Transaction should be executed completely if no exception.
-    </test>
-
-    <test id="T_Consistency" fpoints="0">
-        Transaction Consistency test.
-        Whether reservation happens or not, the total num of rooms in a location should be consist.
-    </test>
-
-    <test id="T_Isolation" fpoints="0">
-        Transaction Isolation test.
-        The change on flight in different transactions should be executed separately.
-    </test>
-
-    <test id="T_TDC1" fpoints="0">
-        Test for Transaction Delete Customer.
-    </test>
-
-    <test id="T_TDCAb" fpoints="0">
-        Test for Transaction Delete Customer then abort and add new Customer,query the customer before the abort and
-        after the abort.
-    </test>
-
-    <test id="T_TDCN" fpoints="0">
-        Test for Transaction Delete Customer then add new Customer of same name,query the customer between the first add
-        and the first delete it, then query the customer between the first delete and the second add.
-    </test>
-
-    <test id="T_Durability" fpoints="0">
-        Transaction Durability test.
-        After transaction finished, it won't roll back without a reasonable reason.
-    </test>
-
-    <test id="T_2kill13" fpoints="0">
-        The tri-thread version of WWWW.When deadlock detected,the thread should dispose it's resources.
-        first thread 1 get car and room,thread 3 get flight,then thread 1 ask for flight and kill itself due to deadlock
-        detected,
-        then thread 2 get the legacy of thread 1--get the room,and later thread 3 ask for the room and kill itself, at
-        last,thread 2 get success.
-    </test>
-
-    <test id="T_Border" fpoints="0">
-        Test border condition.
-    </test>
-
-    <test id="T_Limit" fpoints="0">
-        Test the limit condition when deleting flight, rooms or cars.
-    </test>
-
-    <test id="T_TLiLock" fpoints="0">
-        Tring to test "livelock".
-        First,three thread get three different resources,if they want to get more resources,there will be a
-        "deadlock",we tring to let some thread commit first which make some resources available and solve the livelock.
-    </test>
 </tests>

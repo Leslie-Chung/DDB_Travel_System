@@ -32,7 +32,7 @@ public class WorkflowControllerImpl
         recover();
 
         while (!reconnect()) {
-            Thread.sleep(1000);
+            Thread.sleep(500);
         }
     }
 

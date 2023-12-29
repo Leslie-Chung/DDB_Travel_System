@@ -13,6 +13,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 
+
 public class RunTests {
     private static final long TESTSLEEP = 1000; // 1 seconds
     private static final int DEFAULTTOTALPOINTS = 100;
@@ -84,13 +85,12 @@ public class RunTests {
         PrintWriter grades = null;
         try {
             grades = new PrintWriter(new FileWriter(LOGDIR + GRADESFILE,
-                    true)); // append
+                    true));    // append
         } catch (IOException e) {
             System.err.println("Cannot open grades file: " + e);
             System.exit(1);
         }
-        grades.println(
-                "For each test your code failed, we have listed the points deducted and the most likely reason:\n");
+        grades.println("For each test your code failed, we have listed the points deducted and the most likely reason:\n");
 
         String nextTest = null;
         for (Node test = tests.getFirstChild(); test != null; test = test.getNextSibling()) {
@@ -110,16 +110,16 @@ public class RunTests {
 
                 if (attr.getNodeName().equals("id")) {
                     id = attr.getNodeValue();
-                    // System.out.println("ID set to: " + id);
+                    //System.out.println("ID set to: " + id);
                 } else if (attr.getNodeName().equals("cleardata")) {
                     clearData = attr.getNodeValue().startsWith("t");
-                    // System.out.println("clearData set to: " + clearData);
+                    //System.out.println("clearData set to: " + clearData);
                 } else if (attr.getNodeName().equals("fpoints")) {
                     fPoints = Integer.parseInt(attr.getNodeValue());
-                    // System.out.println("fPoints set to: " + fPoints);
+                    //System.out.println("fPoints set to: " + fPoints);
                 } else if (attr.getNodeName().equals("fnext")) {
                     fNext = attr.getNodeValue();
-                    // System.out.println("fNext set to: " + fNext);
+                    //System.out.println("fNext set to: " + fNext);
                 } else {
                     System.err.println("Unknown attribute: " + attr.getNodeName());
                     System.exit(1);
@@ -140,14 +140,14 @@ public class RunTests {
             }
 
             String fmsg = test.getFirstChild().getNodeValue().trim();
-            // System.out.println("fmsg is: " + fmsg);
+            //System.out.println("fmsg is: " + fmsg);
 
             if (clearData) {
                 System.out.println("Clearing data");
                 try {
                     if (Runtime.getRuntime().exec("rm -rf data").waitFor() != 0) {
                         System.err.println("Clear data not successful");
-                        // System.exit(1);
+//			System.exit(1);
                     }
                 } catch (IOException e) {
                     System.err.println("Cannot clear data: " + e);
@@ -157,18 +157,18 @@ public class RunTests {
                     System.exit(1);
                 }
 
-                /*
-                 * if (!(new File("data").mkdir())) {
-                 * System.err.println("mkdir data not successful");
-                 * System.exit(1);
-                 * }
-                 */
+		/*
+		if (!(new File("data").mkdir())) {
+		    System.err.println("mkdir data not successful");
+		    System.exit(1);
+		}
+		*/
             }
 
             System.out.println("Launching test " + id);
             Process proc = null;
             try {
-                proc = Runtime.getRuntime().exec(new String[] {
+                proc = Runtime.getRuntime().exec(new String[]{
                         "sh",
                         "-c",
                         "java -classpath .. -DrmiPort=" +
@@ -176,7 +176,7 @@ public class RunTests {
                                 " -Djava.security.policy=./security-policy transaction.Client <" +
                                 SCRIPTDIR + id +
                                 " >" + LOGDIR + id + OUTSUFFIX +
-                                " 2>" + LOGDIR + id + ERRSUFFIX });
+                                " 2>" + LOGDIR + id + ERRSUFFIX});
             } catch (IOException e) {
                 System.err.println("Cannot launch Client: " + e);
                 System.exit(1);
